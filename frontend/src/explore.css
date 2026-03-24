@@ -1,0 +1,117 @@
+
+.explore-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: var(--spacing-lg);
+  min-height: 100vh;
+  background: var(--color-surface);
+}
+
+.explore-container h1 {
+  font-size: 1.8rem;
+  margin-bottom: var(--spacing-md);
+}
+
+.explore-desc {
+  color: var(--color-muted);
+  margin-bottom: var(--spacing-xl);
+}
+
+.explore-search {
+  margin-bottom: var(--spacing-xl);
+  position: relative;
+}
+
+.explore-search input {
+  width: 100%;
+  padding: 12px 45px;
+  border-radius: 40px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  transition: border-color var(--transition);
+}
+
+.explore-search input:focus {
+  border-color: var(--color-primary);
+  outline: none;
+}
+
+.explore-search .search-icon {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-muted);
+}
+
+.trends-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.explore-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: transform var(--transition), background var(--transition);
+  background: var(--color-surface);
+}
+
+.explore-card:hover {
+  background: var(--color-surface-2);
+  transform: translateX(4px);
+}
+
+.trend-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.trend-hashtag {
+  font-weight: 700;
+  color: var(--color-primary);
+  font-size: 1.1rem;
+}
+
+.trend-count {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.follow-btn {
+  padding: 8px 20px;
+  border-radius: 40px;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--transition);
+}
+
+.follow-btn:hover {
+  opacity: 0.9;
+}
+
+/* Responsiveness */
+@media (max-width: 600px) {
+  .explore-container {
+    padding: var(--spacing-md);
+  }
+  
+  .explore-card {
+    flex-direction: row;
+    align-items: center;
+  }
+  
+  .trend-hashtag {
+    font-size: 1rem;
+  }
+}

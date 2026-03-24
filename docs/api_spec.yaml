@@ -1,0 +1,134 @@
+openapi: 3.0.0
+info:
+  title: CIVIFIX Open API
+  description: Public and Authority endpoints for the CIVIFIX anonymous reporting platform.
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000/api
+    description: Local development server
+  - url: https://api.civifix.rw/api
+    description: Production server
+paths:
+  /reports:
+    post:
+      summary: Submit a new anonymous report
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                category:
+                  type: string
+                  enum: [corruption, security, racism, service]
+                description:
+                  type: string
+                latitude:
+                  type: number
+                longitude:
+                  type: number
+                address:
+                  type: string
+                media:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Max 5 files, 5MB each.
+      responses:
+        '201':
+          description: Report submitted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                  reportId:
+                    type: integer
+                  trackingToken:
+                    type: string
+  /reports/public:
+    get:
+      summary: Get obfuscated public reports (Dashboard)
+      parameters:
+        - in: query
+          name: category
+          schema:
+            type: string
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 100
+      responses:
+        '200':
+          description: OK
+  
+  /reports/admin:
+    get:
+      summary: Get all reports with precise locations
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+
+  /reports/{id}/status:
+    put:
+      summary: Update report status
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [open, in-progress, resolved, rejected]
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Status updated
+
+  /auth/login:
+    post:
+      summary: Authority admin login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: OK
+          
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
