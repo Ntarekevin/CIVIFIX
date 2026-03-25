@@ -6,6 +6,10 @@ import './index.css';
 import { initAutoSync } from './services/offlineQueue';
 import { LanguageProvider } from './store/LanguageContext';
 import { SocketProvider } from './store/SocketContext';
+import { registerSW } from 'virtual:pwa-register';
+
+// Register PWA Service Worker
+registerSW({ immediate: true });
 
 // Start listening for online events to flush the offline report queue
 initAutoSync();

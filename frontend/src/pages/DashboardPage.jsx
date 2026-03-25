@@ -1,36 +1,70 @@
-import React, { useState, useEffect } from 'react';
-import { getPublicReports, getTrends } from '../services/api';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
+import { getPublicReports } from '../services/api';
 import PostCreation from '../components/PostCreation';
 import PostCard from '../components/PostCard';
 import RightSidebar from '../components/RightSidebar';
+import { useLanguage } from '../store/LanguageContext';
 
 export default function DashboardPage() {
+  const { t } = useLanguage();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTag, setActiveTag] = useState(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async (tag = null) => {
     setLoading(true);
     try {
-      const data = await getPublicReports({ limit: 10 });
+      const params = { limit: 20 };
+      if (tag) {
+        params.category = tag.replace(/^#/, '');
+      }
+      const data = await getPublicReports(params);
       setReports(data.reports || []);
     } catch (err) {
       console.error("Failed to fetch reports:", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    fetchData(activeTag);
+  }, [activeTag, fetchData]);
+
+  const handleTagFilter = (tag) => {
+    setActiveTag(tag);
+  };
+
+  const location = useLocation();
+  const highlightedId = new URLSearchParams(location.search).get('id');
 
   return (
     <div className="flex gap-8">
       {/* Main Feed Column */}
       <div className="flex-1 space-y-6 max-w-2xl mx-auto lg:mx-0">
-        <PostCreation onPostSuccess={fetchData} />
-        
+        <PostCreation onPostSuccess={() => fetchData(activeTag)} />
+
+        {/* Active tag banner */}
+        {activeTag && (
+          <div className="flex items-center justify-between px-4 py-2 bg-primary/5 border border-primary/20 rounded-xl">
+            <span className="text-sm text-primary font-semibold">
+              {t('showingReportsFor')} <strong>{activeTag}</strong>
+            </span>
+            <button
+              onClick={() => setActiveTag(null)}
+              className="text-xs text-gray-500 hover:text-red-500 font-medium transition-colors"
+            >
+              {t('clearFilters')} ✕
+            </button>
+          </div>
+        )}
+
         <div className="space-y-6">
+          <h2 className="text-xl font-outfit font-bold text-gray-900 dark:text-white px-2">
+            {t('recentReports')}
+          </h2>
+
           {loading ? (
             <div className="space-y-6">
               {[1, 2, 3].map(i => (
@@ -48,28 +82,34 @@ export default function DashboardPage() {
             </div>
           ) : reports.length > 0 ? (
             reports.map((report) => (
-              <PostCard 
-                key={report.id} 
+              <PostCard
+                key={report.id}
+                isHighlighted={String(report.id) === highlightedId}
                 report={{
+                  id: report.id,
                   publicId: report.public_id,
                   content: report.description,
                   timestamp: new Date(report.created_at).toLocaleDateString(),
                   location: report.city || "Rwanda",
-                  imageUrl: report.media && report.media.length > 0 ? report.media[0].url : null,
-                  userRole: report.category === 'security' ? 'Security Alert' : 'Verified Resident',
-                }} 
+                  userRole: report.category ? t(report.category.toLowerCase()) : t('verifiedResident'),
+                  tags: report.category ? [`#${report.category}`] : [],
+                  commentsCount: report.comments?.length || 0,
+                  media: report.media || [], // Pass full media array
+                }}
               />
             ))
           ) : (
             <div className="text-center py-20 bg-white dark:bg-surface-dark rounded-2xl border dark:border-gray-800">
-              <p className="text-gray-500">No reports found. Be the first to report!</p>
+              <p className="text-gray-500">
+                {activeTag ? `${t('noReportsFound')} ${activeTag}` : t('noReportsFoundDefault')}
+              </p>
             </div>
           )}
         </div>
       </div>
 
       {/* Right Sidebar */}
-      <RightSidebar />
+      <RightSidebar onTagFilter={handleTagFilter} />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { getAdminReports } from '../services/api';
 import PostCard from '../components/PostCard';
 
@@ -20,6 +21,9 @@ export default function MentionsPage() {
     }
     fetchMentions();
   }, []);
+
+  const location = useLocation();
+  const highlightedId = new URLSearchParams(location.search).get('id');
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
@@ -44,6 +48,7 @@ export default function MentionsPage() {
           mentions.map((report) => (
             <PostCard 
               key={report.id} 
+              isHighlighted={String(report.id) === highlightedId}
               report={{
                 id: report.id,
                 publicId: report.public_id,

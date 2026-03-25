@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const crypto = require('crypto');
 const pool = require('../db');
-const authenticateAuthority = require('../middleware/auth');
+const { authenticateAuthority, authenticateAdmin } = require('../middleware/auth');
 
 // --- File Upload Setup (Multer) ---
 // Using memory storage so we can scrub EXIF before uploading to S3
@@ -143,29 +143,31 @@ router.post('/', upload.array('media', 5), async (req, res) => {
       }
     }
 
-    // 5. Extract and Handle Mentions (@username)
+    // 5. Extract and Handle Mentions (@username or #username)
     if (description) {
-      const mentions = description.match(/@(\w+)/g);
+      const mentions = description.match(/[@#]([\w-]+)/g);
       if (mentions) {
-        for (const mention of mentions) {
-          const username = mention.slice(1);
+        for (const m of mentions) {
+          const searchTerm = m.slice(1).toLowerCase();
           const userRes = await client.query(
-            `SELECT id, role FROM users WHERE username = $1 AND role IN ('official', 'admin', 'authority')`,
-            [username]
+            `SELECT id FROM users 
+             WHERE (LOWER(username) = $1 OR LOWER(full_name) = $1 OR LOWER(username) LIKE $1 || '%')
+             AND role IN ('official', 'admin', 'authority')`,
+            [searchTerm]
           );
           if (userRes.rows.length > 0) {
             const authorityId = userRes.rows[0].id;
             await client.query(
               `INSERT INTO report_mentions (report_id, authority_id) 
-               VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+               VALUES ($1, $2) ON CONFLICT (report_id, authority_id) DO NOTHING`,
               [report.id, authorityId]
             );
 
             // Create notification
             await client.query(
-              `INSERT INTO notifications (type, content) 
-               VALUES ('mention', $1)`,
-              [`You were mentioned in report ${publicId}`]
+              `INSERT INTO notifications (type, content, report_id) 
+               VALUES ('mention', $1, $2)`,
+              [`You were mentioned in report ${publicId}`, report.id]
             );
           }
         }
@@ -197,6 +199,39 @@ router.post('/', upload.array('media', 5), async (req, res) => {
     res.status(500).json({ msg: 'Server error', error: err.message });
   } finally {
     client.release();
+  }
+});
+
+// ============================================================
+// PUT /api/reports/:token  – Edit citizen report (Anonymous)
+// ============================================================
+router.put('/:token', async (req, res) => {
+  const { description, category } = req.body;
+  const token = req.params.token;
+
+  if (!description && !category) {
+    return res.status(400).json({ msg: 'Nothing to update' });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE reports SET 
+         description = COALESCE($1, description),
+         category = COALESCE($2, category),
+         updated_at = CURRENT_TIMESTAMP
+       WHERE tracking_token = $3
+       RETURNING id, public_id, description, category, status`,
+      [description || null, category || null, token]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ msg: 'Report not found or invalid token' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating report:', err);
+    res.status(500).json({ msg: 'Server error' });
   }
 });
 
@@ -291,11 +326,52 @@ router.get('/public', async (req, res) => {
 // GET /api/reports/notifications  – Get public notifications
 // ============================================================
 router.get('/notifications', async (req, res) => {
+  const { tokens } = req.query; // Comma-separated tracking tokens
+
   try {
-    const result = await pool.query('SELECT * FROM notifications ORDER BY created_at DESC LIMIT 20');
+    let query = 'SELECT * FROM notifications WHERE target_token IS NULL';
+    let params = [];
+
+    if (tokens) {
+      const tokenList = tokens.split(',').map(t => t.trim());
+      query += ` OR target_token = ANY($1)`;
+      params.push(tokenList);
+    }
+
+    query += ' ORDER BY created_at DESC LIMIT 20';
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching notifications:', err);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// ============================================================
+// PUT /api/reports/notifications/:id/read  – Mark a notification as read
+// ============================================================
+router.put('/notifications/:id/read', async (req, res) => {
+  try {
+    await pool.query('UPDATE notifications SET is_unread = false WHERE id = $1', [req.params.id]);
+    res.json({ msg: 'Notification marked as read' });
+  } catch (err) {
+    console.error('Error marking notification as read:', err);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// ============================================================
+// PUT /api/reports/notifications/read-all  – Mark all for given tokens as read
+// ============================================================
+router.put('/notifications/read-all', async (req, res) => {
+  const { tokens } = req.body;
+  if (!tokens || !Array.isArray(tokens)) return res.status(400).json({ msg: 'Tokens array required' });
+
+  try {
+    await pool.query('UPDATE notifications SET is_unread = false WHERE target_token = ANY($1)', [tokens]);
+    res.json({ msg: 'All notifications marked as read' });
+  } catch (err) {
+    console.error('Error marking all notifications as read:', err);
     res.status(500).json({ msg: 'Server error' });
   }
 });
@@ -354,6 +430,24 @@ router.post('/:id/comment', async (req, res) => {
        VALUES ($1, $2, $3) RETURNING *`,
       [req.params.id, content, authorName || 'Anonymous']
     );
+
+    // Create notification for reporter
+    const reportRes = await pool.query('SELECT tracking_token, public_id FROM reports WHERE id = $1', [req.params.id]);
+    if (reportRes.rows.length > 0) {
+      const { tracking_token, public_id } = reportRes.rows[0];
+      const notifContent = `New comment on report ${public_id}: "${content.substring(0, 30)}..."`;
+      
+      const notifRes = await pool.query(
+        `INSERT INTO notifications (type, content, target_token, report_id) VALUES ('reply', $1, $2, $3) RETURNING *`,
+        [notifContent, tracking_token, req.params.id]
+      );
+
+      // Socket Emit to personal room
+      if (req.io) {
+        req.io.to(`token:${tracking_token}`).emit('notification', notifRes.rows[0]);
+      }
+    }
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error commenting on report:', err);
@@ -361,6 +455,22 @@ router.post('/:id/comment', async (req, res) => {
   }
 });
 
+
+// ============================================================
+// GET /api/reports/:id/comments  – Fetch all comments for a report
+// ============================================================
+router.get('/:id/comments', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, content, author_name, created_at FROM report_comments WHERE report_id = $1 ORDER BY created_at ASC',
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching comments:', err);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
 
 // ============================================================
 // GET /api/reports/track/:token  – Citizen status check (no auth needed)
@@ -521,6 +631,23 @@ router.put('/:id/status', authenticateAuthority, async (req, res) => {
 
     await client.query('COMMIT');
 
+    // Create notification for reporter
+    const reportRes = await client.query('SELECT tracking_token, public_id FROM reports WHERE id = $1', [req.params.id]);
+    if (reportRes.rows.length > 0) {
+      const { tracking_token, public_id } = reportRes.rows[0];
+      const notifContent = `Report ${public_id} status updated to: ${status}`;
+      
+      const notifRes = await client.query(
+        `INSERT INTO notifications (type, content, target_token, report_id) VALUES ('status_change', $1, $2, $3) RETURNING *`,
+        [notifContent, tracking_token, req.params.id]
+      );
+
+      // Socket Emit to personal room
+      if (req.io) {
+        req.io.to(`token:${tracking_token}`).emit('notification', notifRes.rows[0]);
+      }
+    }
+
     if (req.io) {
       req.io.to('admins').emit('report-updated', { id: req.params.id, status });
     }
@@ -592,6 +719,30 @@ router.post('/:id/escalate', async (req, res) => {
     res.json({ msg: 'Report escalated successfully' });
   } catch (err) {
     console.error('Escalation error:', err);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// ============================================================
+// POST /api/reports/announcements  – Create global announcement (Admin only)
+// ============================================================
+router.post('/announcements', authenticateAdmin, async (req, res) => {
+  const { content } = req.body;
+  if (!content) return res.status(400).json({ msg: 'Announcement content required' });
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO notifications (type, content) VALUES ('announcement', $1) RETURNING *`,
+      [content]
+    );
+
+    if (req.io) {
+      req.io.emit('notification', result.rows[0]);
+    }
+
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error creating announcement:', err);
     res.status(500).json({ msg: 'Server error' });
   }
 });

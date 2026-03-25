@@ -1,0 +1,18 @@
+﻿commit 07727b03940a3a96dd3174e055807b66cef0b738
+Merge: 669b1bf 69a7052
+Author: Ntarekevin <k.nyawakira@alustudent.com>
+Date:   Tue Mar 24 11:02:27 2026 +0200
+
+    Merge origin/main into main, resolving README.md conflict
+
+commit 69a705251ad6c5b24f819f651da134b454cb344e
+Author: Ntarekevin <k.nyawakira@alustudent.com>
+Date:   Tue Mar 24 10:48:48 2026 +0200
+
+    Initial commit
+
+commit 669b1bf94bad86e044df0c6a2b6bb7ac18f01782
+Author: Ntarekevin <k.nyawakira@alustudent.com>
+Date:   Tue Mar 24 10:34:19 2026 +0200
+
+    Initial commit

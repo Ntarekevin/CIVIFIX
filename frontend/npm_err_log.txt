@@ -1,0 +1,7 @@
+npm error code UNKNOWN
+npm error syscall rename
+npm error path C:\Users\Ntare Kevin\OneDrive\Desktop\CIVIFIX\frontend\node_modules\unicode-property-aliases-ecmascript
+npm error dest C:\Users\Ntare Kevin\OneDrive\Desktop\CIVIFIX\frontend\node_modules\.unicode-property-aliases-ecmascript-ixv3I2PT
+npm error errno -4094
+npm error UNKNOWN: unknown error, rename 'C:\Users\Ntare Kevin\OneDrive\Desktop\CIVIFIX\frontend\node_modules\unicode-property-aliases-ecmascript' -> 'C:\Users\Ntare Kevin\OneDrive\Desktop\CIVIFIX\frontend\node_modules\.unicode-property-aliases-ecmascript-ixv3I2PT'
+npm error A complete log of this run can be found in: C:\Users\Ntare Kevin\AppData\Local\npm-cache\_logs\2026-03-25T14_27_26_458Z-debug-0.log

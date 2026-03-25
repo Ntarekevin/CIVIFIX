@@ -39,9 +39,19 @@ export const starReport = (id) => request('POST', `/reports/${id}/star`);
 export const commentReport = (id, content, authorName) => 
   request('POST', `/reports/${id}/comment`, { content, authorName });
 
-export const getNotifications = () => request('GET', '/reports/notifications');
+export const getNotifications = (params = {}) => {
+  const qs = new URLSearchParams(params).toString();
+  return request('GET', `/reports/notifications${qs ? `?${qs}` : ''}`);
+};
+
+export const markNotificationAsRead = (id) => 
+  request('PUT', `/reports/notifications/${id}/read`);
+
+export const markAllNotificationsAsRead = (tokens) => 
+  request('PUT', '/reports/notifications/read-all', { tokens });
 
 export const getTrends = () => request('GET', '/reports/trends');
+export const getReportComments = (id) => request('GET', `/reports/${id}/comments`);
 
 export const escalateReport = (id) => request('POST', `/reports/${id}/escalate`);
 
@@ -49,6 +59,12 @@ export const escalateReport = (id) => request('POST', `/reports/${id}/escalate`)
 // -------- Auth Endpoints --------
 export const login = (username, password) =>
   request('POST', '/auth/login', { username, password });
+
+export const register = (username, password, fullName, role) =>
+  request('POST', '/auth/register', { username, password, fullName, role });
+
+export const updateReport = (token, data) =>
+  request('PUT', `/reports/${token}`, data);
 
 // -------- Authority Endpoints --------
 export const getAdminReports = () => request('GET', '/reports/admin');

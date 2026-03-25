@@ -43,6 +43,11 @@ io.on('connection', (socket) => {
     console.log(`Socket ${socket.id} joined 'admins' room`);
   });
 
+  socket.on('join-token-room', (token) => {
+    socket.join(`token:${token}`);
+    console.log(`Socket ${socket.id} joined room 'token:${token}'`);
+  });
+
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
   });

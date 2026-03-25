@@ -13,7 +13,9 @@ export const LanguageProvider = ({ children }) => {
   }, [language]);
 
   const t = (key) => {
-    const langKey = language === 'Kinyarwanda' ? 'rw' : 'en';
+    let langKey = 'en';
+    if (language === 'Kinyarwanda') langKey = 'rw';
+    if (language === 'French') langKey = 'fr';
     if (!translations[langKey]) return key;
     return translations[langKey][key] || translations['en'][key] || key;
   };

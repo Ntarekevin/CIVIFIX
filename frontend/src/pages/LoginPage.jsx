@@ -65,6 +65,8 @@ export default function LoginPage() {
               </span>
               <input
                 type="text"
+                name="username"
+                autocomplete="username"
                 className="w-full pl-12 pr-4 py-3.5 bg-gray-50 dark:bg-gray-800/50 border dark:border-gray-700 rounded-2xl text-gray-800 dark:text-white focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder-gray-400"
                 placeholder="Enter authority username"
                 value={username}
@@ -84,6 +86,8 @@ export default function LoginPage() {
               </span>
               <input
                 type="password"
+                name="password"
+                autocomplete="current-password"
                 className="w-full pl-12 pr-4 py-3.5 bg-gray-50 dark:bg-gray-800/50 border dark:border-gray-700 rounded-2xl text-gray-800 dark:text-white focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder-gray-400"
                 placeholder="••••••••"
                 value={password}
@@ -102,10 +106,15 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="text-center pt-4">
+        <div className="text-center pt-4 space-y-4">
             <p className="text-xs text-gray-400 italic">
                 Authorized personnel only. All access is logged and monitored.
             </p>
+            <div className="pt-2 border-t dark:border-gray-800">
+                <p className="text-sm text-gray-500">
+                    First time user? <button onClick={() => navigate('/signup')} className="text-primary font-bold hover:underline">Create an account</button>
+                </p>
+            </div>
         </div>
       </div>
     </div>
